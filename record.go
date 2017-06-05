@@ -1,16 +1,15 @@
 package jumocsv
 
 import (
-	"bufio"
 	"encoding/csv"
-	"os"
+	"io"
 	"strconv"
 	"strings"
 	"time"
 )
 
 const (
-	msisdnIdx = int(iota)
+	msisdnIdx  = int(iota)
 	networkIdx
 	dateIdx
 	productIdx
@@ -27,18 +26,18 @@ type Record struct {
 	Amount  uint64
 }
 
-type Reader struct {
-	csv *csv.Reader
+type csvReader interface {
+	Read() (record []string, err error)
 }
 
-func NewReader(path string) (*Reader, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
+type Reader struct {
+	csv csvReader
+}
+
+func NewReader(r io.Reader) *Reader {
 	return &Reader{
-		csv.NewReader(bufio.NewReader(f)),
-	}, nil
+		csv.NewReader(r),
+	}
 }
 
 func (r *Reader) Headers() ([]string, error) {
@@ -58,6 +57,7 @@ func parseRecord(rec []string) (record Record, err error) {
 	if err != nil {
 		return
 	}
+	// storing the currency in an uint64 to avoid float overflows
 	record.Amount, err = strconv.ParseUint(strings.Replace(rec[amountIdx], ".", "", -1), 10, 64)
 	if err != nil {
 		return
@@ -69,7 +69,7 @@ func parseRecord(rec []string) (record Record, err error) {
 
 func unqoute(s string) string {
 	if s[0] == '\'' {
-		return s[1 : len(s)-1]
+		return s[1: len(s)-1]
 	}
 	return s
 }
